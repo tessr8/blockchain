@@ -1,0 +1,144 @@
+<html>
+    <head>
+	<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+	<meta name="author" content="@EJS32 - Tessr.io">
+	<noscript><div id="noscript">ECMAscript/Javascript</div></noscript>
+	<title>Blockchain Open Systems Interconnection model  (BOSI) - X.509 certificate generation and registration</title>
+	<!-- X.509 Forge Javascript libraries (https://github.com/digitalbazaar/forge) -->
+	<script language="JavaScript" type="text/javascript" src="forge.min.js"></script>
+	<!-- Javascript functions -->
+	<script language="javascript" type="text/javascript">
+	    function generateX509Certificate(organizationName, organizationalUnitName, commonName, subjectAltNames, password, ttl) {
+		var cert = forge.pki.createCertificate();
+//      var keys = forge.pki.rsa.generateKeyPair(4096);
+		var keys = forge.pki.rsa.generateKeyPair(512);
+		cert.publicKey = keys.publicKey;
+		cert.serialNumber = '0';
+		cert.validity.notBefore = new Date();
+//      Set certificate expiration date to NOW + ttl seconds
+		cert.validity.notAfter = new Date();
+		cert.validity.notAfter.setSeconds(cert.validity.notAfter.getSeconds() + ttl);
+//      Set issuer and subject attributes
+		var attrs = [{
+			name: 'organizationName',
+			value: organizationName
+		    }, {
+			name: 'organizationalUnitName',
+			value: organizationalUnitName
+		    }, {
+			name: 'commonName',
+			value: commonName
+		}];
+		cert.setIssuer(attrs);
+		cert.setSubject(attrs);
+		var altNames = [];
+		if (subjectAltNames !== null) {
+		    for (index = 0; index < subjectAltNames.length; ++index) {
+			altNames[index] = {
+						type: 2,
+						value: subjectAltNames[index] + "." + commonName + ".bit"
+					}
+		    }
+		}
+		cert.setExtensions([
+		    {
+			name: 'basicConstraints',
+			cA: false
+		    }, {
+			name: 'subjectAltName',
+			altNames: altNames
+		    }
+		]);
+		var hash = forge.md.sha1.create();
+		cert.sign(keys.privateKey, hash);
+		var pkcs12 = forge.pkcs12.toPkcs12Asn1(keys.privateKey, [cert], password, {algorithm: '3des'});
+//		keys = null;
+		password = null;
+		var pkcs12Der = forge.asn1.toDer(pkcs12).getBytes();
+		var a = document.createElement('a');
+		a.download = 'HiveToken-' + commonName + ".p12";
+//		a.setAttribute('href','data:application/x-x509-user-cert,' + pkcs12Der);
+		a.setAttribute('href','data:application/x-pkcs12;base64,' + forge.util.encode64(pkcs12Der));
+		a.appendChild(document.createTextNode('Click to Download Client Certificate'));
+		document.body.appendChild(a);
+		var asn1 = forge.pki.certificateToAsn1(cert);
+		var der = forge.asn1.toDer(asn1);
+		var fingerprint = forge.md.sha1.create();
+		fingerprint.update(der.bytes());
+		return(fingerprint.digest().toHex());
+	    }
+
+	    function getFormData() {
+		var rpcaddress      = document.getElementById("rpcaddress").value;
+		var rpcport         = document.getElementById("rpcport").value;
+		var rpcuser         = document.getElementById("rpcuser").value;
+		var rpcpassword     = document.getElementById("rpcpassword").value;
+		var identity        = document.getElementById("identity").value;
+		var subjectAltNames = document.getElementById("subjectAltNames").value;
+		var password1       = document.getElementById("password1").value;
+		var password2       = document.getElementById("password2").value;
+
+		alert(
+		      "\nRPCAddress:      " + rpcaddress
+		    + "\nRPCPort:         " + rpcport
+		    + "\nRPCUser:         " + rpcuser
+		    + "\nRPCPassword:     " + rpcpassword
+		    + "\nIdentity:        " + identity
+		    + "\nSubjectAltNames: " + subjectAltNames
+		    + "\nPassword1:       " + password1
+		    + "\nPassword2:       " + password2
+		);
+
+		alert("Generating RSA keypair. This can take a lot of time ...");
+		var result = generateX509Certificate("InternetCommunity", "HiveToken", identity, null, password1, (32000 * 10 * 60));
+		alert("Fingerprint: " + result);
+
+	    }
+
+	</script>
+
+    </head>
+    <body>
+	<form>
+	    <div>
+		    RPCAddress:
+		    <input type="text" id="rpcaddress" name="rpcaddress" value="127.0.0.1">
+		</div>
+	    <div>
+		    RPCPort:
+			<input type="text" id="rpcport" name="rpcport" value="8336">
+		</div>
+	    <div>
+		    RPCUser:
+			<input type="text" id="rpcuser" name="rpcuser" value="">
+		</div>
+	    <div>
+		    RPCPassword:
+			<input type="text" id="rpcpassword" name="rpcpassword" value="">
+		</div>
+	    <div>
+		    Identity:
+			<select id="identity" name="identity">
+		        <option>NoobName</option>
+	        </select>
+		</div>
+	    <div>
+		    Subdomains:
+			<input type="textarea" id="subjectAltNames" name="subjectAltNames" value="">
+		</div>
+	    <div>
+		    Password:
+			<input type="password" id="password1" name="password1" value="0815">
+	    </div>
+	    <div>
+		    Repeat:\
+			<input type="password" id="password2" name="password2" value="0815">
+		</div>
+	    <div>
+		    <input type="button" value="OK" onclick="getFormData();">
+		</div>
+	</form>
+	<div id="certificate">
+	</div>
+    </body>
+</html>
